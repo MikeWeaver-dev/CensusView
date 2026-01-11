@@ -7,7 +7,7 @@ library(DT)
 library(bslib)
 library(shinyjs)
 library(shinyWidgets)  # Added this — needed for radioGroupButtons
-
+load("StateData.RData")
 ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
                  
                  tags$head(tags$style(HTML("
@@ -493,5 +493,6 @@ server <- function(input, output, session) {
     w
   })
 }
+
 
 shinyApp(ui = ui, server = server)
