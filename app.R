@@ -14,7 +14,6 @@ County2021 <- readRDS("County2021.rds")
 County2022 <- readRDS("County2022.rds")
 County2023 <- readRDS("County2023.rds")
 
-
 ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
                  
                  tags$head(tags$style(HTML("
@@ -409,9 +408,7 @@ server <- function(input, output, session) {
     }
     
     validate(
-      need(input$Year1 != input$Year2, "Start and End years must be different."),
-      need(input$Geography != "Tract" || exists(paste0("tract_by_state", input$Year1)), 
-           paste("Data for", input$Year1, "not found."))
+      need(input$Year1 != input$Year2, "Start and End years must be different.")
     )
     
     # For Tract geography, load both years dynamically
@@ -467,7 +464,11 @@ server <- function(input, output, session) {
     percents <- c("Percent with Bachelor Degrees")
     
     w <- datatable(df, filter = "top", rownames = FALSE,
-                   options = list(pageLength = 10))
+                   options = list(
+                     pageLength = 10,
+                     scrollX = TRUE,  # Enable horizontal scrolling
+                     autoWidth = FALSE
+                   ))
     
     all_cols <- names(df)
     
