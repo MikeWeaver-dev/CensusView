@@ -6,8 +6,15 @@ library(shinythemes)
 library(DT)
 library(bslib)
 library(shinyjs)
-library(shinyWidgets)  # Added this — needed for radioGroupButtons
+library(shinyWidgets)
+
 load("StateData.RData")
+County2020 <- readRDS("County2020.rds")
+County2021 <- readRDS("County2021.rds")
+County2022 <- readRDS("County2022.rds")
+County2023 <- readRDS("County2023.rds")
+
+
 ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
                  
                  tags$head(tags$style(HTML("
@@ -62,17 +69,9 @@ ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
                                             selected = "State"),
                                 
                                 conditionalPanel(
-                                  condition = "input.Geography == 'Tract'",
+                                  condition = "input.Geography == 'Tract' || input.Geography == 'County'",
                                   selectInput("State", "Choose a State to Analyze",
                                               choices = Statenames, selected = "Alabama")
-                                ),
-                                
-                                conditionalPanel(
-                                  condition = "input.Geography == 'County'",
-                                  div(style = "padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; margin-bottom: 15px;",
-                                      tags$strong(style = "color: #856404;", "Note: "),
-                                      tags$span(style = "color: #856404;", "County dataset is large and loads slowly. On the server it may break due to low RAM. please be patient.")
-                                  )
                                 ),
                                 
                                 conditionalPanel(
@@ -92,14 +91,14 @@ ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
                                 
                                 
                                 conditionalPanel(
-                                  condition = "input.Year1 == input.Year2",
+                                  condition = "input.Year1 == input.Year2 && input.Analysismode == 'change'",
                                   div(style = "padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; margin-bottom: 15px;",
                                       tags$strong(style = "color: #856404;", "Note: "),
                                       tags$span(style = "color: #856404;", "Please select two different years below")
                                   )
                                 ),
-                  
-                                  
+                                
+                                
                                 selectInput("Variable", "Choose a Variable to Analyze",
                                             choices = Variablename, selected = "Population"),
                                 
@@ -241,14 +240,40 @@ server <- function(input, output, session) {
       ")
   })
   
+  # Helper function to load tract data dynamically
+  load_tract_data <- function(state, year) {
+    # Replace spaces with underscores in state name
+    state_formatted <- gsub(" ", "_", state)
+    
+    # Construct file name
+    filename <- paste0("Tract", year, "_", state_formatted, ".rds")
+    
+    # Check if file exists
+    if (!file.exists(filename)) {
+      stop(paste("File not found:", filename))
+    }
+    
+    # Load and return the data
+    readRDS(filename)
+  }
+  
   Mapdata <- eventReactive(input$Button, {
     req(input$Year2)
-    nm <- paste0(input$Geography, input$Year2)
-    d <- get(nm, inherits = TRUE)
     
-    if (input$Geography == "Tract" && "Statenames" %in% names(d)) {
-      d <- d[d$Statenames == input$State, , drop = FALSE]
+    # For Tract geography, load dynamically
+    if (input$Geography == "Tract") {
+      req(input$State)
+      d <- load_tract_data(input$State, input$Year2)
+    } else {
+      # For State and County, use existing logic
+      nm <- paste0(input$Geography, input$Year2)
+      d <- get(nm, inherits = TRUE)
+      
+      if (input$Geography == "County" && "Statenames" %in% names(d)) {
+        d <- d[d$Statenames == input$State, , drop = FALSE]
+      }
     }
+    
     d
   })
   
@@ -272,12 +297,19 @@ server <- function(input, output, session) {
              "Please select two different years for Change-over-Time analysis.")
       )
       
-      nm1 <- paste0(input$Geography, input$Year1)
-      validate(need(exists(nm1), paste("Data for year", input$Year1, "not available.")))
-      
-      d1 <- get(nm1, inherits = TRUE)
-      if (input$Geography == "Tract" && "Statenames" %in% names(d1)) {
-        d1 <- d1[d1$Statenames == input$State, , drop = FALSE]
+      # For Tract geography, load Year1 data dynamically
+      if (input$Geography == "Tract") {
+        req(input$State)
+        d1 <- load_tract_data(input$State, input$Year1)
+      } else {
+        nm1 <- paste0(input$Geography, input$Year1)
+        validate(need(exists(nm1), paste("Data for year", input$Year1, "not available.")))
+        
+        d1 <- get(nm1, inherits = TRUE)
+        
+        if (input$Geography == "County" && "Statenames" %in% names(d1)) {
+          d1 <- d1[d1$Statenames == input$State, , drop = FALSE]
+        }
       }
       
       y1 <- suppressWarnings(as.numeric(d1[[input$Variable]][match(d[[key]], d1[[key]])]))
@@ -295,7 +327,7 @@ server <- function(input, output, session) {
     dom <- v[mask]
     validate(need(length(dom) > 0, "No valid data to display for the selected variable."))
     
-    if (input$Geography %in% c("State", "County")) {
+    if (input$Geography %in% c("State")) {
       leafletProxy("Map") %>%
         flyToBounds(lng1 = -125, lat1 = 24, lng2 = -66, lat2 = 50)
     } else {
@@ -353,16 +385,23 @@ server <- function(input, output, session) {
     shinyjs::hide("loading_note")
   })
   
-  # FIXED: Changed to eventReactive tied to Button click instead of inputs
   Tabledata <- eventReactive(input$Button, {
     req(input$Year2)
     
     if (input$Analysismode == "point") {
-      nm <- paste0(input$Geography, input$Year2)
-      d <- get(nm, inherits = TRUE)
-      if (input$Geography == "Tract" && "Statenames" %in% names(d)) {
-        d <- d[d$Statenames == input$State, , drop = FALSE]
+      # For Tract geography, load dynamically
+      if (input$Geography == "Tract") {
+        req(input$State)
+        d <- load_tract_data(input$State, input$Year2)
+      } else {
+        nm <- paste0(input$Geography, input$Year2)
+        d <- get(nm, inherits = TRUE)
+        
+        if (input$Geography == "County" && "Statenames" %in% names(d)) {
+          d <- d[d$Statenames == input$State, , drop = FALSE]
+        }
       }
+      
       df <- as.data.frame(d) %>% select(-any_of("geometry"))
       wanted <- unique(c("NAME", "Population", "Median Household Income", input$Variable))
       df <- select(df, any_of(wanted))
@@ -371,17 +410,25 @@ server <- function(input, output, session) {
     
     validate(
       need(input$Year1 != input$Year2, "Start and End years must be different."),
-      need(exists(paste0(input$Geography, input$Year1)), paste("Data for", input$Year1, "not found."))
+      need(input$Geography != "Tract" || exists(paste0("tract_by_state", input$Year1)), 
+           paste("Data for", input$Year1, "not found."))
     )
     
-    nm1 <- paste0(input$Geography, input$Year1)
-    nm2 <- paste0(input$Geography, input$Year2)
-    d1 <- get(nm1, inherits = TRUE)
-    d2 <- get(nm2, inherits = TRUE)
-    
+    # For Tract geography, load both years dynamically
     if (input$Geography == "Tract") {
-      if ("Statenames" %in% names(d1)) d1 <- d1[d1$Statenames == input$State, , drop = FALSE]
-      if ("Statenames" %in% names(d2)) d2 <- d2[d2$Statenames == input$State, , drop = FALSE]
+      req(input$State)
+      d1 <- load_tract_data(input$State, input$Year1)
+      d2 <- load_tract_data(input$State, input$Year2)
+    } else {
+      nm1 <- paste0(input$Geography, input$Year1)
+      nm2 <- paste0(input$Geography, input$Year2)
+      d1 <- get(nm1, inherits = TRUE)
+      d2 <- get(nm2, inherits = TRUE)
+      
+      if (input$Geography == "County") {
+        if ("Statenames" %in% names(d1)) d1 <- d1[d1$Statenames == input$State, , drop = FALSE]
+        if ("Statenames" %in% names(d2)) d2 <- d2[d2$Statenames == input$State, , drop = FALSE]
+      }
     }
     
     df1 <- as.data.frame(d1) %>% select(-any_of("geometry"))
@@ -422,7 +469,6 @@ server <- function(input, output, session) {
     w <- datatable(df, filter = "top", rownames = FALSE,
                    options = list(pageLength = 10))
     
-    # FIXED: Identify all columns in the dataframe to format
     all_cols <- names(df)
     
     if (is_change) {
@@ -431,59 +477,46 @@ server <- function(input, output, session) {
       ycols <- c(paste0(year1, " ", var_name), paste0(year2, " ", var_name))
       change_col <- paste0("Change over Time (", year1, "→", year2, ")")
       
-      # Format each column based on what it contains
       for (col in all_cols) {
-        if (col == "NAME") next  # Skip name column
+        if (col == "NAME") next
         
-        # Check if this column contains population data
         if (grepl("Population", col, ignore.case = TRUE)) {
           w <- formatRound(w, col, digits = 0, mark = ",")
         }
-        # Check if this column contains median household income
         else if (grepl("Median Household Income", col, ignore.case = TRUE)) {
           w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
         }
-        # Check if this column contains other dollar values
         else if (any(sapply(dollars, function(d) grepl(d, col, fixed = TRUE)))) {
           w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
         }
-        # Check if this column contains percent data (but not change over time)
         else if (any(sapply(percents, function(p) grepl(p, col, fixed = TRUE))) && !grepl("Change over Time", col)) {
           w <- formatString(w, col, suffix = "%") %>%
             formatRound(col, digits = 1, mark = ",")
         }
-        # Check if this is the change over time column
         else if (col == change_col) {
           w <- formatPercentage(w, col, digits = 1)
         }
-        # Default: regular number formatting
         else {
           w <- formatRound(w, col, digits = 0, mark = ",")
         }
       }
     } else {
-      # Point-in-time formatting
       for (col in all_cols) {
-        if (col == "NAME") next  # Skip name column
+        if (col == "NAME") next
         
-        # Check if this column is Population
         if (col == "Population") {
           w <- formatRound(w, col, digits = 0, mark = ",")
         }
-        # Check if this column is Median Household Income
         else if (col == "Median Household Income") {
           w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
         }
-        # Check if this column is a dollar variable
         else if (col %in% dollars) {
           w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
         }
-        # Check if this column is a percent variable
         else if (col %in% percents) {
           w <- formatString(w, col, suffix = "%") %>%
             formatRound(col, digits = 1, mark = ",")
         }
-        # Default: regular number formatting
         else {
           w <- formatRound(w, col, digits = 0, mark = ",")
         }
@@ -493,6 +526,5 @@ server <- function(input, output, session) {
     w
   })
 }
-
 
 shinyApp(ui = ui, server = server)
