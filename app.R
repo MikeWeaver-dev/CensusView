@@ -14,6 +14,9 @@ County2021 <- readRDS("County2021.rds")
 County2022 <- readRDS("County2022.rds")
 County2023 <- readRDS("County2023.rds")
 
+# DON'T load tract data at startup anymore
+# Tract data will be loaded dynamically based on user selection
+
 ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
                  
                  tags$head(tags$style(HTML("

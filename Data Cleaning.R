@@ -2,6 +2,7 @@
 
 library(tidyverse)
 library(sf)
+library(tigris)
 
 DF1 <- data.frame(Variablename, Variablesforanalysis)
 DF2 <- data.frame(Fips, Statenames)
@@ -99,5 +100,3 @@ assign(paste0("County",Year),Countydata)
 assign(paste0("Tract",Year),Tractdata)
 
 rm(Staterawdata, Statedata, Statedatacleaning, Countyrawdata, Countydata, Countydatacleaning, Tractrawdata, Tractdata, Tractdatacleaning)
-
-
