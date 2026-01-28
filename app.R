@@ -8,6 +8,7 @@ library(bslib)
 library(shinyjs)
 library(shinyWidgets)
 
+# loading seperately because of GitHub, which requires data in smaller batches
 load("StateData.RData")
 County2020 <- readRDS("County2020.rds")
 County2021 <- readRDS("County2021.rds")
@@ -16,210 +17,256 @@ County2023 <- readRDS("County2023.rds")
 
 # DON'T load tract data at startup anymore
 # Tract data will be loaded dynamically based on user selection
+# This helps with speed
 
-ui <- navbarPage(title = "Mike Weaver App", theme = shinytheme("sandstone"),
-                 
-                 tags$head(tags$style(HTML("
-                   .btn-darkcyan, .btn-darkcyan:focus {
-                     background-color:#6bc2c2!important; border-color:#6bc2c2!important; color:#fff!important;
-                   }
-                   .btn-darkcyan:hover, .btn-darkcyan.active, .open>.dropdown-toggle.btn-darkcyan {
-                     background-color:#0bbaba!important; border-color:#0bbaba!important; color:#fff!important;
-                   }
-                 "))),
-                 
-                 tabsetPanel(
-                   tabPanel("Data Mapping",
-                            shinyjs::useShinyjs(),
-                            
-                            titlePanel(tags$h2("Census Data Mapping",
-                                               style = "margin: 10px 5px 20px 15px;")),
-                            
-                            tags$h4("Select Inputs Below!",
-                                    style = "color: DarkCyan; margin: 10px 5px 15px 15px;"),
-                            
-                            sidebarLayout(
-                              sidebarPanel(
-                                p("", style = "margin-bottom: -10px;"),
-                                h4("Choose Variable & Geography to Analyze"),
-                                p("", style = "margin-bottom: 25px;"),
-                                
-                                shinyWidgets::radioGroupButtons(
-                                  inputId = "Analysismode",
-                                  label = "Select Type of Analysis",
-                                  choices = c("Point-in-Time" = "point", "Change-over-Time" = "change"),
-                                  selected = "point",
-                                  individual = TRUE,
-                                  size = "sm",
-                                  status = "darkcyan",
-                                  checkIcon = list(yes = icon("check"))
-                                ),
-                                
-                                tags$head(tags$style(HTML("
-                                  .radio-group-buttons .btn.radiobtn {
-                                    border-radius: 10px !important;
-                                    margin-right: 8px;
-                                    margin-bottom: 6px;
-                                  }
-                                  .radio-group-buttons .btn.radiobtn:last-child { margin-right: 0; }
-                                "))),
-                                
-                                p("", style = "margin-bottom: 8px;"),
-                                
-                                selectInput("Geography", "Choose a Geography",
-                                            choices = c("State", "County", "Tract"),
-                                            selected = "State"),
-                                
-                                conditionalPanel(
-                                  condition = "input.Geography == 'Tract' || input.Geography == 'County'",
-                                  selectInput("State", "Choose a State to Analyze",
-                                              choices = Statenames, selected = "Alabama")
-                                ),
-                                
-                                conditionalPanel(
-                                  condition = "input.Analysismode == 'point'",
-                                  selectInput("Year2", "Choose a Year to Analyze",
-                                              choices = Yearsavailable, selected = "2023")
-                                ),
-                                
-                                conditionalPanel(
-                                  condition = "input.Analysismode == 'change'",
-                                  
-                                  selectInput("Year1", "Choose Start Year for Analysis",
-                                              choices = Yearsavailable, selected = "2020"),
-                                  selectInput("Year2", "Choose End Year for Analysis",
-                                              choices = Yearsavailable, selected = "2023")
-                                ),
-                                
-                                
-                                conditionalPanel(
-                                  condition = "input.Year1 == input.Year2 && input.Analysismode == 'change'",
-                                  div(style = "padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; margin-bottom: 15px;",
-                                      tags$strong(style = "color: #856404;", "Note: "),
-                                      tags$span(style = "color: #856404;", "Please select two different years below")
-                                  )
-                                ),
-                                
-                                
-                                selectInput("Variable", "Choose a Variable to Analyze",
-                                            choices = Variablename, selected = "Population"),
-                                
-                                p("", style = "margin-bottom: 35px;"),
-                                
-                                actionButton("Button", "Generate Map"),
-                                
-                                p("", style = "margin-bottom: 5px;"),
-                                shinyjs::hidden(div(id = "loading_note", class = "text-warning", "Loading…"))
-                              ),
-                              
-                              mainPanel(
-                                div(class = "panel panel-default",
-                                    div(class = "panel-heading", "Interactive Map"),
-                                    div(class = "panel-body",
-                                        leafletOutput("Map", height = 400),
-                                        verbatimTextOutput("clicked")
-                                    )
-                                ),
-                                
-                                div(class = "panel panel-primary",
-                                    div(class = "panel-heading", "Data Table"),
-                                    div(class = "panel-body",
-                                        fluidPage(DTOutput('Tbl'))
-                                    )
-                                )
-                              )
-                            )
-                   ),
-                   
-                   tabPanel(
-                     "Other Apps",
-                     
-                     tags$head(tags$style(HTML("
-                       .panel { border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.06); border-width:1px; margin-bottom:20px; }
-                       .panel .panel-body { min-height: 120px; }
-                       .panel-default { border-color:#a39c96; }
-                       .panel-default > .panel-heading { background:#a39c96; border-color:#a39c96; color:#FFFFFF; font-weight:600; }
-                       .panel-default > .panel-body { background:#F5F1EC; color:#3F3A37; }
-                       .panel-default > .panel-heading a,
-                       .panel-default > .panel-heading a:hover,
-                       .panel-default > .panel-heading a:focus { color:#FFFFFF; text-decoration:none; }
-                       .panel-primary { border-color:#008B8B; }
-                       .panel-primary > .panel-heading { background:#008B8B; border-color:#008B8B; color:#FFFFFF; font-weight:600; }
-                       .panel-primary > .panel-body { background:#E6F7F7; color:#0A3F3F; }
-                       .panel-primary > .panel-heading a,
-                       .panel-primary > .panel-heading a:hover,
-                       .panel-primary > .panel-heading a:focus { color:#FFFFFF; text-decoration:none; }
-                       .panel-info { border-color:#20C997; }
-                       .panel-info > .panel-heading { background:#20C997; border-color:#20C997; color:#FFFFFF; font-weight:600; }
-                       .panel-info > .panel-body { background:#E9FBF6; color:#114C45; }
-                       .panel-info > .panel-heading a,
-                       .panel-info > .panel-heading a:hover,
-                       .panel-info > .panel-heading a:focus { color:#FFFFFF; text-decoration:none; }
-                     "))),
-                     
-                     titlePanel(
-                       tags$h2("Portfolio of Web Applications",
-                               style = "color: DarkCyan; margin: 10px 5px 20px 15px;")
-                     ),
-                     
-                     fluidRow(
-                       column(width = 6, class = "col-md-4",
-                              div(class = "panel panel-primary",
-                                  div(class = "panel-heading",
-                                      tags$a(href = "https://Mikeweaver.dev", "Personal Portfolio")),
-                                  div(class = "panel-body",
-                                      "This link takes you directly to my portfolio - a website for all my coding projects and qualifications. From there you can access my web apps, source code, resume, and more.")
-                              )
-                       ),
-                       
-                       column(width = 6, class = "col-md-4",
-                              div(class = "panel panel-info",
-                                  div(class = "panel-heading",
-                                      tags$a(href = "https://voyage.Mikeweaver.dev/", "Voyage")),
-                                  div(class = "panel-body",
-                                      "This web app is a working and scalable social media platform where users can post about their travels and experiences.")
-                              )
-                       ),
-                       
-                       div(class = "clearfix visible-sm-block"),
-                       
-                       column(width = 6, class = "col-md-4",
-                              div(class = "panel panel-info",
-                                  div(class = "panel-heading",
-                                      tags$a(href = "https://aichef.mikeweaver.dev/", "AI Chef")),
-                                  div(class = "panel-body",
-                                      "AI Chef is for web and mobile (including iOS via Expo). The app integrates AI within a compelling UI/UX to inspire meals based on food users have on-hand.")
-                              )
-                       ),
-                       
-                       column(width = 6, class = "col-md-4",
-                              div(class = "panel panel-info",
-                                  div(class = "panel-heading",
-                                      tags$a(href = "https://spotifylab.mikeweaver.dev/", "SpotifyLab")),
-                                  div(class = "panel-body",
-                                      "Optimized for desktop and mobile and available on the ios and Android app store, this app leverages artificial intelligence to generate bespoke playlists based on user inputs and Spotify listening history.")
-                              )
-                       )
-                     )
-                   ),
-                   
-                   tabPanel("About",
-                            titlePanel(
-                              tags$h2("Note from Developer",
-                                      style = "color: DarkCyan; margin: 10px 5px 20px 15px;"
-                              )),
-                            
-                            div(class = "panel panel-default",
-                                div(class = "panel-heading", "About this Web App"),
-                                div(class = "panel-body",
-                                    h5("This is the first app I built for my software development portfolio. I like it because it utilizes the Census API and millions of data points, but appears very simple from the user perspective.", style = "margin: 10px 5px 20px 0px;"),
-                                    h5("This app reminds me a lot of the coding work I did at my last job. We routinely worked with demographic data and GIS systems to synthesize complex analysis into clear and readable maps. I often used R for my workflow so I felt it a fitting starting point, though in the future I hope to publish projects leverage Python, Javascript, and AI.", style = "margin: 10px 5px 20px 0px;"),
-                                    h5("Thanks for visiting my webpage! See more of my apps on the 'Other Apps' Tab", style = "margin: 10px 5px 20px 0px;"),
-                                    h5("Mike Weaver", style = "margin: 0px 5px 20px 0px;")
-                                )
-                            )
-                   )
-                 )
+ui <- navbarPage(
+  title = "Mike Weaver App",
+  theme = shinytheme("sandstone"),
+  
+  # Link to external CSS file
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
+  ),
+  
+  tabsetPanel(
+    tabPanel(
+      "Data Mapping",
+      shinyjs::useShinyjs(),
+      
+      titlePanel(
+        tags$h2("Census Data Mapping", style = "margin: 10px 5px 20px 15px;")
+      ),
+      
+      tags$h4(
+        "Select Inputs Below!",
+        style = "color: DarkCyan; margin: 10px 5px 15px 15px;"
+      ),
+      
+      sidebarLayout(
+        sidebarPanel(
+          p("", style = "margin-bottom: -10px;"),
+          h4("Choose Variable & Geography to Analyze"),
+          p("", style = "margin-bottom: 25px;"),
+          
+          shinyWidgets::radioGroupButtons(
+            inputId = "Analysismode",
+            label = "Select Type of Analysis",
+            choices = c("Point-in-Time" = "point", "Change-over-Time" = "change"),
+            selected = "point",
+            individual = TRUE,
+            size = "sm",
+            status = "darkcyan",
+            checkIcon = list(yes = icon("check"))
+          ),
+          
+          p("", style = "margin-bottom: 8px;"),
+          
+          selectInput(
+            "Geography",
+            "Choose a Geography",
+            choices = c("State", "County", "Tract"),
+            selected = "State"
+          ),
+          
+          conditionalPanel(
+            condition = "input.Geography == 'Tract' || input.Geography == 'County'",
+            selectInput(
+              "State",
+              "Choose a State to Analyze",
+              choices = Statenames,
+              selected = "Alabama"
+            )
+          ),
+          
+          conditionalPanel(
+            condition = "input.Analysismode == 'point'",
+            selectInput(
+              "Year2",
+              "Choose a Year to Analyze",
+              choices = Yearsavailable,
+              selected = "2023"
+            )
+          ),
+          
+          conditionalPanel(
+            condition = "input.Analysismode == 'change'",
+            selectInput(
+              "Year1",
+              "Choose Start Year for Analysis",
+              choices = Yearsavailable,
+              selected = "2020"
+            ),
+            selectInput(
+              "Year2",
+              "Choose End Year for Analysis",
+              choices = Yearsavailable,
+              selected = "2023"
+            )
+          ),
+          
+          conditionalPanel(
+            condition = "input.Year1 == input.Year2 && input.Analysismode == 'change'",
+            div(
+              style = "padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; margin-bottom: 15px;",
+              tags$strong(style = "color: #856404;", "Note: "),
+              tags$span(style = "color: #856404;", "Please select two different years below")
+            )
+          ),
+          
+          selectInput(
+            "Variable",
+            "Choose a Variable to Analyze",
+            choices = Variablename,
+            selected = "Population"
+          ),
+          
+          p("", style = "margin-bottom: 35px;"),
+          
+          actionButton("Button", "Generate Map"),
+          
+          p("", style = "margin-bottom: 5px;"),
+          shinyjs::hidden(
+            div(id = "loading_note", class = "text-warning", "Loading…")
+          )
+        ),
+        
+        mainPanel(
+          div(
+            class = "panel panel-default",
+            div(class = "panel-heading", "Interactive Map"),
+            div(
+              class = "panel-body",
+              leafletOutput("Map", height = 400),
+              verbatimTextOutput("clicked")
+            )
+          ),
+          
+          div(
+            class = "panel panel-primary",
+            div(class = "panel-heading", "Data Table"),
+            div(
+              class = "panel-body",
+              fluidPage(DTOutput('Tbl'))
+            )
+          )
+        )
+      )
+    ),
+    
+    tabPanel(
+      "Other Apps",
+      
+      titlePanel(
+        tags$h2(
+          "Portfolio of Web Applications",
+          style = "color: DarkCyan; margin: 10px 5px 20px 15px;"
+        )
+      ),
+      
+      fluidRow(
+        column(
+          width = 6,
+          class = "col-md-4",
+          div(
+            class = "panel panel-primary",
+            div(
+              class = "panel-heading",
+              tags$a(href = "https://Mikeweaver.dev", "Personal Portfolio")
+            ),
+            div(
+              class = "panel-body",
+              "This link takes you directly to my portfolio - a website for all my coding projects and qualifications. From there you can access my web apps, source code, resume, and more."
+            )
+          )
+        ),
+        
+        column(
+          width = 6,
+          class = "col-md-4",
+          div(
+            class = "panel panel-info",
+            div(
+              class = "panel-heading",
+              tags$a(href = "https://voyage.Mikeweaver.dev/", "Voyage")
+            ),
+            div(
+              class = "panel-body",
+              "This web app is a working and scalable social media platform where users can post about their travels and experiences."
+            )
+          )
+        ),
+        
+        div(class = "clearfix visible-sm-block"),
+        
+        column(
+          width = 6,
+          class = "col-md-4",
+          div(
+            class = "panel panel-info",
+            div(
+              class = "panel-heading",
+              tags$a(href = "https://aichef.mikeweaver.dev/", "AI Chef")
+            ),
+            div(
+              class = "panel-body",
+              "AI Chef is for web and mobile (including iOS via Expo). The app integrates AI within a compelling UI/UX to inspire meals based on food users have on-hand."
+            )
+          )
+        ),
+        
+        column(
+          width = 6,
+          class = "col-md-4",
+          div(
+            class = "panel panel-info",
+            div(
+              class = "panel-heading",
+              tags$a(href = "https://mikeweaver.dev/spotifylab", "SpotifyLab")
+            ),
+            div(
+              class = "panel-body",
+              "Optimized for desktop and mobile and available on the ios and Android app store, this app leverages artificial intelligence to generate bespoke playlists based on user inputs and Spotify listening history."
+            )
+          )
+        )
+      )
+    ),
+    
+    tabPanel(
+      "About",
+      
+      titlePanel(
+        tags$h2(
+          "Note from Developer",
+          style = "color: DarkCyan; margin: 10px 5px 20px 15px;"
+        )
+      ),
+      
+      div(
+        class = "panel panel-default",
+        div(class = "panel-heading", "About this Web App"),
+        div(
+          class = "panel-body",
+          h5(
+            "This is the first app I built for my software development portfolio. I like it because it utilizes the Census API and millions of data points, but appears very simple from the user perspective.",
+            style = "margin: 10px 5px 20px 0px;"
+          ),
+          h5(
+            "This app reminds me a lot of the coding work I did at my last job. We routinely worked with demographic data and GIS systems to synthesize complex analysis into clear and readable maps. I often used R for my workflow so I felt it a fitting starting point, though in the future I hope to publish projects leverage Python, Javascript, and AI.",
+            style = "margin: 10px 5px 20px 0px;"
+          ),
+          h5(
+            "Thanks for visiting my webpage! See more of my apps on the 'Other Apps' Tab",
+            style = "margin: 10px 5px 20px 0px;"
+          ),
+          h5(
+            "Mike Weaver",
+            style = "margin: 0px 5px 20px 0px;"
+          )
+        )
+      )
+    )
+  )
 )
 
 server <- function(input, output, session) {
@@ -244,13 +291,14 @@ server <- function(input, output, session) {
   
   # Helper function to load tract data dynamically
   load_tract_data <- function(state, year) {
+    
     # Replace spaces with underscores in state name
     state_formatted <- gsub(" ", "_", state)
     
     # Construct file name
     filename <- paste0("Tract", year, "_", state_formatted, ".rds")
     
-    # Check if file exists
+    # Check if file exists. Should always exist
     if (!file.exists(filename)) {
       stop(paste("File not found:", filename))
     }
@@ -259,38 +307,40 @@ server <- function(input, output, session) {
     readRDS(filename)
   }
   
-  Mapdata <- eventReactive(input$Button, {
+  selected_map_data <- eventReactive(input$Button, {
     req(input$Year2)
     
     # For Tract geography, load dynamically
     if (input$Geography == "Tract") {
       req(input$State)
-      d <- load_tract_data(input$State, input$Year2)
+      geo_data <- load_tract_data(input$State, input$Year2)
     } else {
       # For State and County, use existing logic
-      nm <- paste0(input$Geography, input$Year2)
-      d <- get(nm, inherits = TRUE)
+      dataset_name <- paste0(input$Geography, input$Year2)
+      geo_data <- get(dataset_name, inherits = TRUE)
       
-      if (input$Geography == "County" && "Statenames" %in% names(d)) {
-        d <- d[d$Statenames == input$State, , drop = FALSE]
+      # for county we are going to filter for just the state selected
+      if (input$Geography == "County" && "Statenames" %in% names(geo_data)) {
+        geo_data <- geo_data[geo_data$Statenames == input$State, , drop = FALSE]
       }
     }
     
-    d
+    geo_data
   })
   
-  observeEvent(Mapdata(), {
-    d <- Mapdata()
-    req(d, nrow(d) > 0)
+  observeEvent(selected_map_data(), {
+    geo_data <- selected_map_data()
+    req(geo_data, nrow(geo_data) > 0)
     
-    key <- "GEOID"
-    nm_col <- as.character(d[["NAME"]])
-    y2 <- suppressWarnings(as.numeric(d[[input$Variable]]))
-    v <- y2
+    geoid_key <- "GEOID"
+    location_names <- as.character(geo_data[["NAME"]])
+    current_year_values <- suppressWarnings(as.numeric(geo_data[[input$Variable]]))
+    display_values <- current_year_values
     
-    pre <- if (input$Variable %in% c("Median Household Income","Median Home Value",
-                                     "Median Gross Rent","Income Reached by Top 5% of Earners")) "$" else ""
-    post <- if (input$Variable %in% c("Percent with Bachelor Degrees")) "%" else ""
+    # when we show the data we may need to show a prefix of $ or suffix of % depending on the variable
+    value_prefix <- if (input$Variable %in% c("Median Household Income", "Median Home Value",
+                                              "Median Gross Rent", "Income Reached by Top 5% of Earners")) "$" else ""
+    value_suffix <- if (input$Variable %in% c("Percent with Bachelor Degrees")) "%" else ""
     legend_title <- input$Variable
     
     if (input$Analysismode == "change") {
@@ -300,53 +350,54 @@ server <- function(input, output, session) {
       )
       
       # For Tract geography, load Year1 data dynamically
+      # we load tract data after the button is pushed to avoid loading in a tremendous amount of data (every tract every year) upon first load
       if (input$Geography == "Tract") {
         req(input$State)
-        d1 <- load_tract_data(input$State, input$Year1)
+        start_year_data <- load_tract_data(input$State, input$Year1)
       } else {
-        nm1 <- paste0(input$Geography, input$Year1)
-        validate(need(exists(nm1), paste("Data for year", input$Year1, "not available.")))
+        start_dataset_name <- paste0(input$Geography, input$Year1)
+        validate(need(exists(start_dataset_name), paste("Data for year", input$Year1, "not available.")))
         
-        d1 <- get(nm1, inherits = TRUE)
+        start_year_data <- get(start_dataset_name, inherits = TRUE)
         
-        if (input$Geography == "County" && "Statenames" %in% names(d1)) {
-          d1 <- d1[d1$Statenames == input$State, , drop = FALSE]
+        if (input$Geography == "County" && "Statenames" %in% names(start_year_data)) {
+          start_year_data <- start_year_data[start_year_data$Statenames == input$State, , drop = FALSE]
         }
       }
       
-      y1 <- suppressWarnings(as.numeric(d1[[input$Variable]][match(d[[key]], d1[[key]])]))
+      start_year_values <- suppressWarnings(as.numeric(start_year_data[[input$Variable]][match(geo_data[[geoid_key]], start_year_data[[geoid_key]])]))
       
-      v <- ifelse(is.na(y1) | is.na(y2) | y1 == 0,
-                  NA_real_,
-                  100 * (y2 - y1) / abs(y1))
+      display_values <- ifelse(is.na(start_year_values) | is.na(current_year_values) | start_year_values == 0,
+                               NA_real_,
+                               100 * (current_year_values - start_year_values) / abs(start_year_values))
       
-      pre <- ""
-      post <- "%"
+      value_prefix <- ""
+      value_suffix <- "%"
       legend_title <- paste0(input$Variable, " (", input$Year1, "→", input$Year2, ", % change)")
     }
     
-    mask <- is.finite(v)
-    dom <- v[mask]
-    validate(need(length(dom) > 0, "No valid data to display for the selected variable."))
+    valid_data_mask <- is.finite(display_values)
+    valid_values_domain <- display_values[valid_data_mask]
+    validate(need(length(valid_values_domain) > 0, "No valid data to display for the selected variable."))
     
     if (input$Geography %in% c("State")) {
       leafletProxy("Map") %>%
         flyToBounds(lng1 = -125, lat1 = 24, lng2 = -66, lat2 = 50)
     } else {
-      d_zoom <- d[mask & !st_is_empty(d), , drop = FALSE]
-      if (nrow(d_zoom) > 0) {
-        if (is.na(st_crs(d_zoom)) || st_crs(d_zoom)$epsg != 4326) {
-          d_zoom <- st_transform(d_zoom, 4326)
+      zoom_data <- geo_data[valid_data_mask & !st_is_empty(geo_data), , drop = FALSE]
+      if (nrow(zoom_data) > 0) {
+        if (is.na(st_crs(zoom_data)) || st_crs(zoom_data)$epsg != 4326) {
+          zoom_data <- st_transform(zoom_data, 4326)
         }
-        bb <- st_bbox(d_zoom)
+        bounding_box <- st_bbox(zoom_data)
         leafletProxy("Map") %>%
-          fitBounds(bb[["xmin"]], bb[["ymin"]], bb[["xmax"]], bb[["ymax"]])
+          fitBounds(bounding_box[["xmin"]], bounding_box[["ymin"]], bounding_box[["xmax"]], bounding_box[["ymax"]])
       }
     }
     
-    pal <- colorQuantile(c("#f1f1f1", "#02b3b3"), domain = dom, n = 5, na.color = "transparent")
+    color_palette <- colorQuantile(c("#f1f1f1", "#02b3b3"), domain = valid_values_domain, n = 5, na.color = "transparent")
     
-    lab_fmt <- if (input$Analysismode == "change") {
+    legend_label_formatter <- if (input$Analysismode == "change") {
       function(type, cuts, p) {
         paste0(
           ifelse(cuts[-length(cuts)] >= 0, "+", ""),
@@ -362,52 +413,55 @@ server <- function(input, output, session) {
       }
     }
     
+    # This is the actual mapping piece. the stuff before just cleaned the data and defined our bins and stiff
     leafletProxy("Map") %>%
       clearGroup("Mapgroup") %>%
       removeControl("legend") %>%
       addPolygons(
-        data = d,
+        data = geo_data,
         group = "Mapgroup",
-        fillColor = pal(v),
+        fillColor = color_palette(display_values),
         color = "#999999",
         weight = 0.25,
         opacity = 0.4,
         fillOpacity = 0.5,
-        label = paste0(nm_col, " — ", legend_title, ": ", pre,
-                       formatC(v, format = "f", digits = if (input$Analysismode == "change") 1 else 0, big.mark = ","),
-                       post),
+        label = paste0(location_names, " — ", legend_title, ": ", value_prefix,
+                       formatC(display_values, format = "f", digits = if (input$Analysismode == "change") 1 else 0, big.mark = ","),
+                       value_suffix),
         highlightOptions = highlightOptions(weight = 2, color = "#444", bringToFront = TRUE)
       ) %>%
-      addLegend("bottomright", pal = pal, values = dom,
+      addLegend("bottomright", pal = color_palette, values = valid_values_domain,
                 title = legend_title, opacity = 0.6,
-                layerId = "legend", labFormat = lab_fmt)
+                layerId = "legend", labFormat = legend_label_formatter)
   })
   
   observeEvent(input$map_drawn, {
     shinyjs::hide("loading_note")
   })
   
-  Tabledata <- eventReactive(input$Button, {
+  # now on to the data table
+  selected_table_data <- eventReactive(input$Button, {
     req(input$Year2)
     
     if (input$Analysismode == "point") {
       # For Tract geography, load dynamically
       if (input$Geography == "Tract") {
         req(input$State)
-        d <- load_tract_data(input$State, input$Year2)
+        geo_data <- load_tract_data(input$State, input$Year2)
       } else {
-        nm <- paste0(input$Geography, input$Year2)
-        d <- get(nm, inherits = TRUE)
+        dataset_name <- paste0(input$Geography, input$Year2)
+        geo_data <- get(dataset_name, inherits = TRUE)
         
-        if (input$Geography == "County" && "Statenames" %in% names(d)) {
-          d <- d[d$Statenames == input$State, , drop = FALSE]
+        if (input$Geography == "County" && "Statenames" %in% names(geo_data)) {
+          geo_data <- geo_data[geo_data$Statenames == input$State, , drop = FALSE]
         }
       }
       
-      df <- as.data.frame(d) %>% select(-any_of("geometry"))
-      wanted <- unique(c("NAME", "Population", "Median Household Income", input$Variable))
-      df <- select(df, any_of(wanted))
-      return(df)
+      table_df <- as.data.frame(geo_data) %>% select(-any_of("geometry"))
+      # Show these variables and the one they chose. If they chose one of these drop it with unique function
+      desired_columns <- unique(c("NAME", "Population", "Median Household Income", input$Variable))
+      table_df <- select(table_df, any_of(desired_columns))
+      return(table_df)
     }
     
     validate(
@@ -417,117 +471,118 @@ server <- function(input, output, session) {
     # For Tract geography, load both years dynamically
     if (input$Geography == "Tract") {
       req(input$State)
-      d1 <- load_tract_data(input$State, input$Year1)
-      d2 <- load_tract_data(input$State, input$Year2)
+      start_year_data <- load_tract_data(input$State, input$Year1)
+      end_year_data <- load_tract_data(input$State, input$Year2)
     } else {
-      nm1 <- paste0(input$Geography, input$Year1)
-      nm2 <- paste0(input$Geography, input$Year2)
-      d1 <- get(nm1, inherits = TRUE)
-      d2 <- get(nm2, inherits = TRUE)
+      start_dataset_name <- paste0(input$Geography, input$Year1)
+      end_dataset_name <- paste0(input$Geography, input$Year2)
+      start_year_data <- get(start_dataset_name, inherits = TRUE)
+      end_year_data <- get(end_dataset_name, inherits = TRUE)
       
       if (input$Geography == "County") {
-        if ("Statenames" %in% names(d1)) d1 <- d1[d1$Statenames == input$State, , drop = FALSE]
-        if ("Statenames" %in% names(d2)) d2 <- d2[d2$Statenames == input$State, , drop = FALSE]
+        if ("Statenames" %in% names(start_year_data)) start_year_data <- start_year_data[start_year_data$Statenames == input$State, , drop = FALSE]
+        if ("Statenames" %in% names(end_year_data)) end_year_data <- end_year_data[end_year_data$Statenames == input$State, , drop = FALSE]
       }
     }
     
-    df1 <- as.data.frame(d1) %>% select(-any_of("geometry"))
-    df2 <- as.data.frame(d2) %>% select(-any_of("geometry"))
+    start_year_df <- as.data.frame(start_year_data) %>% select(-any_of("geometry"))
+    end_year_df <- as.data.frame(end_year_data) %>% select(-any_of("geometry"))
     
-    var_sym <- sym(input$Variable)
-    col_y1 <- paste0(input$Year1, " ", input$Variable)
-    col_y2 <- paste0(input$Year2, " ", input$Variable)
-    change_col <- paste0("Change over Time (", input$Year1, "→", input$Year2, ")")
+    variable_symbol <- sym(input$Variable)
+    start_year_column_name <- paste0(input$Year1, " ", input$Variable)
+    end_year_column_name <- paste0(input$Year2, " ", input$Variable)
+    change_column_name <- paste0("Change over Time (", input$Year1, "→", input$Year2, ")")
     
-    y1 <- df1 %>% select(GEOID, NAME, !!var_sym) %>% rename(y1_raw = !!var_sym)
-    y2 <- df2 %>% select(GEOID, !!var_sym) %>% rename(y2_raw = !!var_sym)
+    start_year_subset <- start_year_df %>% select(GEOID, NAME, !!variable_symbol) %>% rename(start_year_raw = !!variable_symbol)
+    end_year_subset <- end_year_df %>% select(GEOID, !!variable_symbol) %>% rename(end_year_raw = !!variable_symbol)
     
-    df <- y1 %>%
-      left_join(y2, by = "GEOID") %>%
+    comparison_df <- start_year_subset %>%
+      left_join(end_year_subset, by = "GEOID") %>%
       mutate(
-        !!col_y1 := y1_raw,
-        !!col_y2 := y2_raw,
-        !!change_col := if_else(!is.na(y1_raw) & y1_raw != 0,
-                                (y2_raw - y1_raw) / abs(y1_raw),
-                                NA_real_)
+        !!start_year_column_name := start_year_raw,
+        !!end_year_column_name := end_year_raw,
+        !!change_column_name := if_else(!is.na(start_year_raw) & start_year_raw != 0,
+                                        (end_year_raw - start_year_raw) / abs(start_year_raw),
+                                        NA_real_)
       ) %>%
-      select(NAME, !!sym(col_y1), !!sym(col_y2), !!sym(change_col))
+      select(NAME, !!sym(start_year_column_name), !!sym(end_year_column_name), !!sym(change_column_name))
     
-    df
+    comparison_df
   })
   
+  # Here is where we load the table. The stuff before was just identifying what needed to load and be shown
   output$Tbl <- DT::renderDT({
-    df <- Tabledata()
-    req(df, nrow(df) > 0)
+    table_df <- selected_table_data()
+    req(table_df, nrow(table_df) > 0)
     
-    is_change <- isolate(input$Analysismode == "change")
-    var_name <- isolate(input$Variable)
+    is_change_analysis <- isolate(input$Analysismode == "change")
+    selected_variable_name <- isolate(input$Variable)
     
-    dollars <- c("Median Household Income","Median Home Value","Median Gross Rent","Income Reached by Top 5% of Earners")
-    percents <- c("Percent with Bachelor Degrees")
+    dollar_variables <- c("Median Household Income", "Median Home Value", "Median Gross Rent", "Income Reached by Top 5% of Earners")
+    percent_variables <- c("Percent with Bachelor Degrees")
     
-    w <- datatable(df, filter = "top", rownames = FALSE,
-                   options = list(
-                     pageLength = 10,
-                     scrollX = TRUE,  # Enable horizontal scrolling
-                     autoWidth = FALSE
-                   ))
+    data_widget <- datatable(table_df, filter = "top", rownames = FALSE,
+                             options = list(
+                               pageLength = 10,
+                               scrollX = TRUE,
+                               autoWidth = FALSE
+                             ))
     
-    all_cols <- names(df)
+    all_column_names <- names(table_df)
     
-    if (is_change) {
-      year1 <- isolate(input$Year1)
-      year2 <- isolate(input$Year2)
-      ycols <- c(paste0(year1, " ", var_name), paste0(year2, " ", var_name))
-      change_col <- paste0("Change over Time (", year1, "→", year2, ")")
+    if (is_change_analysis) {
+      start_year <- isolate(input$Year1)
+      end_year <- isolate(input$Year2)
+      year_columns <- c(paste0(start_year, " ", selected_variable_name), paste0(end_year, " ", selected_variable_name))
+      change_column <- paste0("Change over Time (", start_year, "→", end_year, ")")
       
-      for (col in all_cols) {
-        if (col == "NAME") next
+      for (column_name in all_column_names) {
+        if (column_name == "NAME") next
         
-        if (grepl("Population", col, ignore.case = TRUE)) {
-          w <- formatRound(w, col, digits = 0, mark = ",")
+        if (grepl("Population", column_name, ignore.case = TRUE)) {
+          data_widget <- formatRound(data_widget, column_name, digits = 0, mark = ",")
         }
-        else if (grepl("Median Household Income", col, ignore.case = TRUE)) {
-          w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
+        else if (grepl("Median Household Income", column_name, ignore.case = TRUE)) {
+          data_widget <- formatCurrency(data_widget, column_name, currency = "$", digits = 0, mark = ",")
         }
-        else if (any(sapply(dollars, function(d) grepl(d, col, fixed = TRUE)))) {
-          w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
+        else if (any(sapply(dollar_variables, function(dollar_var) grepl(dollar_var, column_name, fixed = TRUE)))) {
+          data_widget <- formatCurrency(data_widget, column_name, currency = "$", digits = 0, mark = ",")
         }
-        else if (any(sapply(percents, function(p) grepl(p, col, fixed = TRUE))) && !grepl("Change over Time", col)) {
-          w <- formatString(w, col, suffix = "%") %>%
-            formatRound(col, digits = 1, mark = ",")
+        else if (any(sapply(percent_variables, function(percent_var) grepl(percent_var, column_name, fixed = TRUE))) && !grepl("Change over Time", column_name)) {
+          data_widget <- formatString(data_widget, column_name, suffix = "%") %>%
+            formatRound(column_name, digits = 1, mark = ",")
         }
-        else if (col == change_col) {
-          w <- formatPercentage(w, col, digits = 1)
+        else if (column_name == change_column) {
+          data_widget <- formatPercentage(data_widget, column_name, digits = 1)
         }
         else {
-          w <- formatRound(w, col, digits = 0, mark = ",")
+          data_widget <- formatRound(data_widget, column_name, digits = 0, mark = ",")
         }
       }
     } else {
-      for (col in all_cols) {
-        if (col == "NAME") next
+      for (column_name in all_column_names) {
+        if (column_name == "NAME") next
         
-        if (col == "Population") {
-          w <- formatRound(w, col, digits = 0, mark = ",")
+        if (column_name == "Population") {
+          data_widget <- formatRound(data_widget, column_name, digits = 0, mark = ",")
         }
-        else if (col == "Median Household Income") {
-          w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
+        else if (column_name == "Median Household Income") {
+          data_widget <- formatCurrency(data_widget, column_name, currency = "$", digits = 0, mark = ",")
         }
-        else if (col %in% dollars) {
-          w <- formatCurrency(w, col, currency = "$", digits = 0, mark = ",")
+        else if (column_name %in% dollar_variables) {
+          data_widget <- formatCurrency(data_widget, column_name, currency = "$", digits = 0, mark = ",")
         }
-        else if (col %in% percents) {
-          w <- formatString(w, col, suffix = "%") %>%
-            formatRound(col, digits = 1, mark = ",")
+        else if (column_name %in% percent_variables) {
+          data_widget <- formatString(data_widget, column_name, suffix = "%") %>%
+            formatRound(column_name, digits = 1, mark = ",")
         }
         else {
-          w <- formatRound(w, col, digits = 0, mark = ",")
+          data_widget <- formatRound(data_widget, column_name, digits = 0, mark = ",")
         }
       }
     }
     
-    w
+    data_widget
   })
 }
 

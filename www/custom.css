@@ -1,0 +1,114 @@
+/* =============================================================================
+   CUSTOM STYLES FOR CENSUS DATA MAPPING APPLICATION
+   ============================================================================= */
+
+/* Button Styles - Dark Cyan Theme */
+.btn-darkcyan,
+.btn-darkcyan:focus {
+  background-color: #6bc2c2 !important;
+  border-color: #6bc2c2 !important;
+  color: #fff !important;
+}
+
+.btn-darkcyan:hover,
+.btn-darkcyan.active,
+.open > .dropdown-toggle.btn-darkcyan {
+  background-color: #0bbaba !important;
+  border-color: #0bbaba !important;
+  color: #fff !important;
+}
+
+/* Radio Button Group Styles */
+.radio-group-buttons .btn.radiobtn {
+  border-radius: 10px !important;
+  margin-right: 8px;
+  margin-bottom: 6px;
+}
+
+.radio-group-buttons .btn.radiobtn:last-child {
+  margin-right: 0;
+}
+
+/* Panel Styles - General */
+.panel {
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  border-width: 1px;
+  margin-bottom: 20px;
+}
+
+.panel .panel-body {
+  min-height: 120px;
+}
+
+/* Panel Styles - Default (Neutral) */
+.panel-default {
+  border-color: #a39c96;
+}
+
+.panel-default > .panel-heading {
+  background: #a39c96;
+  border-color: #a39c96;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.panel-default > .panel-body {
+  background: #F5F1EC;
+  color: #3F3A37;
+}
+
+.panel-default > .panel-heading a,
+.panel-default > .panel-heading a:hover,
+.panel-default > .panel-heading a:focus {
+  color: #FFFFFF;
+  text-decoration: none;
+}
+
+/* Panel Styles - Primary (Dark Cyan) */
+.panel-primary {
+  border-color: #008B8B;
+}
+
+.panel-primary > .panel-heading {
+  background: #008B8B;
+  border-color: #008B8B;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.panel-primary > .panel-body {
+  background: #E6F7F7;
+  color: #0A3F3F;
+}
+
+.panel-primary > .panel-heading a,
+.panel-primary > .panel-heading a:hover,
+.panel-primary > .panel-heading a:focus {
+  color: #FFFFFF;
+  text-decoration: none;
+}
+
+/* Panel Styles - Info (Teal/Turquoise) */
+.panel-info {
+  border-color: #20C997;
+}
+
+.panel-info > .panel-heading {
+  background: #20C997;
+  border-color: #20C997;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.panel-info > .panel-body {
+  background: #E9FBF6;
+  color: #114C45;
+}
+
+.panel-info > .panel-heading a,
+.panel-info > .panel-heading a:hover,
+.panel-info > .panel-heading a:focus {
+  color: #FFFFFF;
+  text-decoration: none;
+}
