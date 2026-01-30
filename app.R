@@ -14,6 +14,7 @@ County2020 <- readRDS("County2020.rds")
 County2021 <- readRDS("County2021.rds")
 County2022 <- readRDS("County2022.rds")
 County2023 <- readRDS("County2023.rds")
+County2024 <- readRDS("County2024.rds")
 
 # DON'T load tract data at startup anymore
 # Tract data will be loaded dynamically based on user selection
@@ -84,7 +85,7 @@ ui <- navbarPage(
               "Year2",
               "Choose a Year to Analyze",
               choices = Yearsavailable,
-              selected = "2023"
+              selected = "2024"
             )
           ),
           
@@ -100,7 +101,7 @@ ui <- navbarPage(
               "Year2",
               "Choose End Year for Analysis",
               choices = Yearsavailable,
-              selected = "2023"
+              selected = "2024"
             )
           ),
           
