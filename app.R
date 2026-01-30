@@ -70,11 +70,22 @@ ui <- navbarPage(
           ),
           
           conditionalPanel(
-            condition = "input.Geography == 'Tract' || input.Geography == 'County'",
+            condition = "input.Geography == 'Tract'",
             selectInput(
               "State",
               "Choose a State to Analyze",
               choices = Statenames,
+              selected = "Alabama"
+            )
+          ),
+          
+          # if it's county we cant let them pick DC
+          conditionalPanel(
+            condition = "input.Geography == 'County'",
+            selectInput(
+              "StateFiltered",
+              "Choose a State to Analyze",
+              choices = StateNamesNoDC,
               selected = "Alabama"
             )
           ),
@@ -322,7 +333,7 @@ server <- function(input, output, session) {
       
       # for county we are going to filter for just the state selected
       if (input$Geography == "County" && "Statenames" %in% names(geo_data)) {
-        geo_data <- geo_data[geo_data$Statenames == input$State, , drop = FALSE]
+        geo_data <- geo_data[geo_data$Statenames == input$StateFiltered, , drop = FALSE]
       }
     }
     
@@ -362,7 +373,7 @@ server <- function(input, output, session) {
         start_year_data <- get(start_dataset_name, inherits = TRUE)
         
         if (input$Geography == "County" && "Statenames" %in% names(start_year_data)) {
-          start_year_data <- start_year_data[start_year_data$Statenames == input$State, , drop = FALSE]
+          start_year_data <- start_year_data[start_year_data$Statenames == input$StateFiltered, , drop = FALSE]
         }
       }
       
@@ -454,7 +465,7 @@ server <- function(input, output, session) {
         geo_data <- get(dataset_name, inherits = TRUE)
         
         if (input$Geography == "County" && "Statenames" %in% names(geo_data)) {
-          geo_data <- geo_data[geo_data$Statenames == input$State, , drop = FALSE]
+          geo_data <- geo_data[geo_data$Statenames == input$StateFiltered, , drop = FALSE]
         }
       }
       
@@ -481,8 +492,8 @@ server <- function(input, output, session) {
       end_year_data <- get(end_dataset_name, inherits = TRUE)
       
       if (input$Geography == "County") {
-        if ("Statenames" %in% names(start_year_data)) start_year_data <- start_year_data[start_year_data$Statenames == input$State, , drop = FALSE]
-        if ("Statenames" %in% names(end_year_data)) end_year_data <- end_year_data[end_year_data$Statenames == input$State, , drop = FALSE]
+        if ("Statenames" %in% names(start_year_data)) start_year_data <- start_year_data[start_year_data$Statenames == input$StateFiltered, , drop = FALSE]
+        if ("Statenames" %in% names(end_year_data)) end_year_data <- end_year_data[end_year_data$Statenames == input$StateFiltered, , drop = FALSE]
       }
     }
     

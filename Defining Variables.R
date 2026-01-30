@@ -42,6 +42,8 @@ Statenames <- c(
                   "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
                   "West Virginia", "Wisconsin", "Wyoming"
                   )
+
+StateNamesNoDC <- Statenames[Statenames != "District of Columbia"]
   
   
      
